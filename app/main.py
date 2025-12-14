@@ -31,43 +31,6 @@ while True:
         print("ERROR:", error)
         time.sleep(2)
 
-
-my_posts = [
-    {
-        "title": "I like pizza!!!!",
-        "content": "I really love pizza, especially pepperoni, it's the best!",
-        "published": True,
-        "rating": 5,
-        "id": 1,
-    },
-    {
-        "title": "look at my new car",
-        "content": "I just bought a new car, it's a red convertible!",
-        "published": False,
-        "id": 2,
-    },
-    {
-        "title": "testing this social media app",
-        "content": "",
-        "published": True,
-        "rating": 3,
-        "id": 3,
-    },
-]
-
-
-def find_post(id: int):
-    for post in my_posts:
-        if post["id"] == id:
-            return {"post_detail": post}
-
-
-def find_index_post(id: int):
-    for index, post in enumerate(my_posts):
-        if post["id"] == id:
-            return index
-
-
 @app.get("/")
 async def root():
     return {"message": "landing page"}
