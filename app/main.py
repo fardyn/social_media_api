@@ -1,4 +1,3 @@
-import random
 import time
 
 from fastapi import FastAPI, HTTPException, Response, status
@@ -13,7 +12,6 @@ class Post(BaseModel):
     title: str
     content: str
     published: bool = True
-    rating: int | None = 0
 
 
 while True:
@@ -23,7 +21,8 @@ while True:
             database="fastapi",
             user="postgres",
             # password="",
-            cursor_factory=RealDictCursor)
+            cursor_factory=RealDictCursor,
+        )
         cursor = conn.cursor()
         print("DATABASE CONNECTION WAS SUCCESSFULLY!")
         break
@@ -76,49 +75,56 @@ async def root():
 
 @app.get("/posts")
 async def get_posts():
-    return {"data": my_posts}
+    posts = cursor.execute("SELECT * FROM posts")
+    posts = cursor.fetchall()
+    return {"data": posts}
 
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 async def create_post(post: Post):
-    id: int = random.randint(1, 10000000000)
-    post_dict = post.model_dump()
-    post_dict["id"] = id
-    my_posts.append(post_dict)
-    return {"data": post}
+    cursor.execute(
+        "INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING *",
+        (post.title, post.content, post.published),
+    )
+    conn.commit()
+    return {"data": cursor.fetchone()}
 
 
 @app.get("/posts/{id}")
 async def get_post(id: int, res: Response):
-    finded_post = find_post(id)
-    if not finded_post:
+    cursor.execute("SELECT * FROM posts WHERE id = %s", (str(id),))
+    post = cursor.fetchone()
+    if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {id} was not found",
         )
-    return finded_post
+    return {"post_detail": post}
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_post(id: int):
-    index = find_index_post(id)
-    if index is None:
+    cursor.execute("DELETE FROM posts WHERE id = %s RETURNING *", (str(id), ))
+    data= cursor.fetchone()
+    conn.commit()
+    if data is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {id} does not exist",
         )
-    my_posts.pop(index)
 
 
 @app.put("/posts/{id}")
 async def update_post(id: int, post: Post):
-    index = find_index_post(id)
-    if index is None:
+    cursor.execute(
+        "UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *",
+        (post.title, post.content, post.published, str(id)),
+    )
+    data = cursor.fetchone()
+    conn.commit()
+    if data is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {id} does not exist",
         )
-    post_dict = post.model_dump()
-    post_dict["id"] = id
-    my_posts[index] = post_dict
-    return {"data": post_dict}
+    return {"data": data}
